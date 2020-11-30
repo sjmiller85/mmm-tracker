@@ -1,0 +1,81 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@600&display=swap"
+      rel="stylesheet"
+    />
+    <title>Mega Man Maker Level Queue</title>
+    <style>
+      * {
+        font-family: 'Source Code Pro', monospace;
+      }
+      ul {
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+      }
+      li {
+        padding-top: 1px;
+        padding-bottom: 1px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="currentLevel"></div>
+    <br />
+    Levels in queue: <span id="queueCnt"></span>
+    <br />
+    Queue is: <span id="queueOpen"></span>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const currentLevelDiv = document.getElementById('currentLevel');
+      const queueCntDiv = document.getElementById('queueCnt');
+      const queueOpenDiv = document.getElementById('queueOpen');
+      const socket = io();
+
+      const noLevel = () => {
+        currentLevelDiv.innerHTML = `No level selected`;
+      };
+
+      socket.on('connect', () => {
+        console.log('Connected to server');
+      });
+
+      socket.on('disconnect', () => {
+        console.log('Disconnected from server');
+      });
+
+      socket.on('no level', noLevel);
+
+      socket.on('queue count', (cnt) => {
+        queueCntDiv.innerText = cnt;
+      });
+
+      socket.on('queue open', (open) => {
+        queueOpenDiv.innerText = open;
+      });
+
+      socket.on('new level', (level) => {
+        if (!level.id) {
+          noLevel();
+          return;
+        }
+        currentLevelDiv.innerHTML = `
+                <ul>
+                    <li>ID: ${level.id}</li>
+                    <li>Name: ${level.name}</li>
+                    <li>Created By: ${level.user}</li>
+                    <li>Created On: ${level.created}</li>
+                    <li>Score: ${level.score}</li>
+                    <li>Play Count: ${level.plays}</li>
+                    <li>Submitted By: ${level.submitter}</li>
+                </ul>
+            `;
+      });
+    </script>
+  </body>
+</html>
