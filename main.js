@@ -11,6 +11,33 @@ let cLevelChange = false; // has there been a change to the cLevel variable?
 let queueOpenChange = false; // has the queue been changed to opened or closed
 let socketFunctions = {};
 
+const calculateQuality = (upvotes, downvotes) => {
+  const z = 1.96;
+  const n = upvotes + downvotes;
+  const p = upvotes / n;
+
+  // Algorithm provided by Goldstorm on MMM's Discord
+  const value =
+    (p +
+      (z * z) / (2 * n) -
+      z * Math.sqrt((p * (1 - p) + (z * z) / (4 * n)) / n)) /
+    (1 + (z * z) / n);
+
+  if (n === 0) {
+    return 'NA';
+  } else if (value > 0 && value < 0.175) {
+    return 'AWFUL';
+  } else if (value >= 0.175 && value < 0.297) {
+    return 'BAD';
+  } else if (value >= 0.297 && value < 0.616) {
+    return 'AVERAGE';
+  } else if (value >= 0.616 && value < 0.769) {
+    return 'GOOD';
+  } else if (value >= 0.769 && value <= 1) {
+    return 'AMAZING';
+  }
+};
+
 app.get('/queue/add/:levelID/:user/:userLevel', (req, res) => {
   // check to make sure it's a valid request
   if (!req.params.levelID || !req.params.user || !req.params.userLevel) {
@@ -42,36 +69,42 @@ app.get('/queue/add/:levelID/:user/:userLevel', (req, res) => {
 
   // get level details from the MMM api
   axios
-    .get(`https://megamanmaker.com/megamaker/level/info/${levelID}`)
+    .get(`https://api.megamanmaker.com/level/${levelID}`)
     .then((response) => {
       const d = response.data;
 
-      if (d.error) {
+      if (d.message) {
         res.status(404).send(`No level with id ${levelID} found`);
         return;
       }
 
-      if (config.reqPosScore && d.score < 0) {
-        res.status(500).send('Levels must have a score of at least zero (0)');
+      if (config.reqPosScore && d.dislikes > d.likes) {
+        res.status(500).send('Levels must have more likes than dislikes');
         return;
       }
 
       levels.push({
         id: d.id,
         name: d.name,
-        user: d.username,
-        created: new Date(d.date).toLocaleDateString('en-us'),
-        score: d.score,
+        user: d.authorName,
+        created: new Date(d.created).toLocaleDateString('en-us'),
+        likes: d.score,
+        dislikes: d.dislikes,
         plays: d.downloads,
+        difficulty: d.difficulty,
         submitter: req.params.user,
         submitterLevel: req.params.userLevel,
       });
+
       socketFunctions.changeQueueCount();
 
       console.log(`added level id: ${d.id} to the queue`);
       res
         .status(200)
         .send(`${req.params.user} added "${d.name}" to the queue!`);
+    })
+    .catch((err) => {
+      res.status(404).send(`No level with id ${levelID} found`);
     });
 });
 
